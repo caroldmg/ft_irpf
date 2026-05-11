@@ -2,24 +2,35 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include "Server.hpp"
-#include "irc.hpp"
+#include "IrcMessage.hpp"
 
-void	Server::run();
-
-void	Server::handleClientData(int fd);
-
-void	Server::processMessage(int fd, const IrcMessage &msg)
+void	Server::handleClientData(int fd)
 {
-	if      (msg.command == "PASS")    cmdPass(fd, msg);
-	else if (msg.command == "NICK")    cmdNick(fd, msg);
-	else if (msg.command == "USER")    cmdUser(fd, msg);
-	else if (msg.command == "JOIN")    cmdJoin(fd, msg);
-	else if (msg.command == "PART")    cmdPart(fd, msg);
-	else if (msg.command == "PRIVMSG") cmdPrivmsg(fd, msg);
-	else if (msg.command == "KICK")    cmdKick(fd, msg);
-	else if (msg.command == "INVITE")  cmdInvite(fd, msg);
-	else if (msg.command == "TOPIC")   cmdTopic(fd, msg);
-	else if (msg.command == "MODE")    cmdMode(fd, msg);
-	else if (msg.command == "QUIT")    cmdQuit(fd, msg);
-	// comandos desconocidos se ignoran
+	char buf[1024];
+	ssize_t n = recv(fd, buf, sizeof(buf), 0);
+	if (n <= 0)
+	{
+		disconnectClient(fd);
+		return;
+	}
+
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+
+	it->second.appendToBuffer(std::string(buf, n));
+
+	while (it->second.hasCompleteLine())
+	{
+		std::string line = it->second.flushLine();
+		if (line.empty()) continue;
+
+		IrcMessage msg;
+		if (!IrcMessage::parse(line, msg))
+			continue;
+		processMessage(fd, msg);
+
+		// si el cliente fue desconectado durante el dispatch, salir
+		if (_clients.find(fd) == _clients.end())
+			return;
+	}
 }

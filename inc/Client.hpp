@@ -1,8 +1,8 @@
 #ifndef CLIENT_HPP
 # define CLIENT_HPP
- 
+
 # include <string>
- 
+
 class Client
 {
 	public:
@@ -11,8 +11,7 @@ class Client
 		Client(const Client &other);
 		Client &operator=(const Client &other);
 		~Client();
- 
-		//  getters 
+
 		int					getFd()        const;
 		const std::string	&getNick()     const;
 		const std::string	&getUser()     const;
@@ -22,37 +21,32 @@ class Client
 		bool				hasPassOk()    const;
 		bool				hasNick()      const;
 		bool				hasUser()      const;
- 
-		//  setters 
+
 		void	setNick(const std::string &nick);
 		void	setUser(const std::string &user);
 		void	setHost(const std::string &host);
 		void	setRealname(const std::string &realname);
 		void	setPassOk(bool ok);
- 
-		//  buffer de recepcion 
+
 		void		appendToBuffer(const std::string &data);
-		std::string	getFirstLine();                             
-		bool		hasCompleteLine() const;                  
- 
-		//  envio 
-		void	sendMsg(const std::string &msg) const; //  msg con \r\n en el fd del cliente
- 
-		//  cabecera IRC 
-		std::string	getPrefix() const; // formato nick!user@host 
- 
+		bool		hasCompleteLine() const;
+		std::string	flushLine();
+
+		void	sendMsg(const std::string &msg) const;
+
+		std::string	getPrefix() const;
+
 	private:
-		int		    fd;
-		std::string nick;
-		std::string user;
-		std::string host;
-		std::string realname;
-		std::string buffer
- 
-		bool	    passOk;
-		bool	    hasNick;
-		bool	    hasUser;
+		int			_fd;
+		std::string	_nick;
+		std::string	_user;
+		std::string	_host;
+		std::string	_realname;
+		std::string	_buffer;
+
+		bool		_passOk;
+		bool		_hasNick;
+		bool		_hasUser;
 };
- 
+
 #endif
- 

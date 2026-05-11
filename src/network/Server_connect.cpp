@@ -26,12 +26,12 @@ void	Server::acceptNewClient()
 
 	Client client(clientFd);
 	client.setHost(inet_ntoa(clientAddr.sin_addr));
-
 	_clients[clientFd] = client;
 
 	pollfd pfd;
 	pfd.fd     = clientFd;
 	pfd.events = POLLIN;
+	pfd.revents = 0;
 	_pollfds.push_back(pfd);
 
 	std::cout << "New client connected: fd=" << clientFd
@@ -40,13 +40,17 @@ void	Server::acceptNewClient()
 
 void	Server::disconnectClient(int fd)
 {
-	for (std::vector<Channel>::iterator ch = _channels.begin(); ch != _channels.end(); ++ch)
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it != _clients.end())
 	{
-		if (ch->isMember(&_clients[fd]))
+		Client *c = &it->second;
+		for (std::vector<Channel>::iterator ch = _channels.begin(); ch != _channels.end(); ++ch)
 		{
-			ch->broadcastExcept(":" + _clients[fd].getPrefix() + " QUIT :connection lost\r\n", fd);
-			ch->removeMember(&_clients[fd]);
-			ch->removeOperator(&_clients[fd]);
+			if (ch->isMember(c))
+			{
+				ch->broadcastExcept(":" + c->getPrefix() + " QUIT :connection closed\r\n", fd);
+				ch->removeMember(c);
+			}
 		}
 	}
 
