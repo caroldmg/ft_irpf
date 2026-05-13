@@ -47,6 +47,19 @@ class Server
 		// dispatch
 		void	processMessage(int fd, const IrcMessage &msg);
 
+		// comandos de registro
+		void	cmdPass(int fd, const IrcMessage &msg);
+		void	cmdNick(int fd, const IrcMessage &msg);
+		void	cmdUser(int fd, const IrcMessage &msg);
+		void	cmdQuit(int fd, const IrcMessage &msg);
+		void	cmdPing(int fd, const IrcMessage &msg);
+		void	cmdCap(int fd, const IrcMessage &msg);
+
+		// helpers
+		void	tryWelcome(int fd);
+		void	sendReply(int fd, const std::string &code, const std::string &body);
+		bool	isValidNick(const std::string &nick) const;
+
 		// utils
 		Client	*getClientByNick(const std::string &nick);
 		Channel	*getChannel(const std::string &name);

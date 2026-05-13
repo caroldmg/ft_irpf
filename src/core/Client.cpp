@@ -2,7 +2,6 @@
 #include <sys/socket.h>
 #include "Client.hpp"
 
-// Constructor
 Client::Client()
 	: _fd(-1), _passOk(false), _hasNick(false), _hasUser(false) {}
 
@@ -33,7 +32,6 @@ Client &Client::operator=(const Client &o)
 
 Client::~Client() {}
 
-// Getter
 int					Client::getFd()        const { return (_fd); }
 const std::string	&Client::getNick()     const { return (_nick); }
 const std::string	&Client::getUser()     const { return (_user); }
@@ -43,23 +41,17 @@ bool				Client::hasPassOk()    const { return (_passOk); }
 bool				Client::hasNick()      const { return (_hasNick); }
 bool				Client::hasUser()      const { return (_hasUser); }
 
-
-// Bool atribute checkers
 bool	Client::isRegistered() const
 {
 	return (_passOk && _hasNick && _hasUser);
 }
 
-
-// Setters
 void	Client::setNick(const std::string &nick)        { _nick = nick; _hasNick = true; }
 void	Client::setUser(const std::string &user)        { _user = user; _hasUser = true; }
 void	Client::setHost(const std::string &host)        { _host = host; }
 void	Client::setRealname(const std::string &r)       { _realname = r; }
 void	Client::setPassOk(bool ok)                      { _passOk = ok; }
 
-
-// functions
 void	Client::appendToBuffer(const std::string &data) { _buffer += data; }
 
 bool	Client::hasCompleteLine() const

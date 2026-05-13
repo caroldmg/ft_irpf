@@ -9,7 +9,6 @@
 
 bool	Server::_running = false;
 
-// Constr and destr
 Server::Server(int port, const std::string &password)
 	: _port(port), _password(password), _serverFd(-1)
 {
@@ -25,8 +24,6 @@ Server::~Server()
 	std::cout << "Server shut down." << std::endl;
 }
 
-
-// init and stop
 void	Server::stop() { _running = false; }
 
 void	Server::initSocket()
@@ -62,8 +59,6 @@ void	Server::initSocket()
 	std::cout << "Server listening on port " << _port << std::endl;
 }
 
-
-// Util funcs
 void	Server::sendToClient(int fd, const std::string &msg)
 {
 	std::map<int, Client>::iterator it = _clients.find(fd);
@@ -103,9 +98,6 @@ Channel	&Server::getOrCreateChannel(const std::string &name)
 	return (_channels.back());
 }
 
-
-
-//main poll loop
 void	Server::run()
 {
 	_running = true;
@@ -150,10 +142,22 @@ void	Server::run()
 	}
 }
 
-// Parse
 void	Server::processMessage(int fd, const IrcMessage &msg)
 {
-	(void)fd;
-	std::cout << "[recv] " << msg.toString() << std::endl;
-	// entrega_1: solo loguea, todavia no hay comandos
+	if      (msg.command == "CAP")     cmdCap(fd, msg);
+	else if (msg.command == "PASS")    cmdPass(fd, msg);
+	else if (msg.command == "NICK")    cmdNick(fd, msg);
+	else if (msg.command == "USER")    cmdUser(fd, msg);
+	else if (msg.command == "QUIT")    cmdQuit(fd, msg);
+	else if (msg.command == "PING")    cmdPing(fd, msg);
+	else if (msg.command == "PONG")    return;
+	else
+	{
+		std::map<int, Client>::iterator it = _clients.find(fd);
+		if (it == _clients.end()) return;
+		if (!it->second.isRegistered())
+			sendReply(fd, "451", ":You have not registered");
+		else
+			sendReply(fd, "421", msg.command + " :Unknown command");
+	}
 }

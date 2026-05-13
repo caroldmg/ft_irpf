@@ -33,21 +33,16 @@ Channel &Channel::operator=(const Channel &o)
 
 Channel::~Channel() {}
 
-// Getters
 const std::string	&Channel::getName()     const { return (_name); }
 const std::string	&Channel::getTopic()    const { return (_topic); }
 const std::string	&Channel::getKey()      const { return (_key); }
 int					Channel::getUserLimit() const { return (_userLimit); }
 
-
-// Bool checkers
 bool	Channel::isInviteOnly()  const { return (_inviteOnly); }
 bool	Channel::isTopicOpOnly() const { return (_topicOpOnly); }
 bool	Channel::hasKey()        const { return (!_key.empty()); }
 bool	Channel::hasUserLimit()  const { return (_userLimit > 0); }
 
-
-// Setters
 void	Channel::setTopic(const std::string &t) { _topic = t; }
 void	Channel::setKey(const std::string &k)   { _key = k; }
 void	Channel::unsetKey()                     { _key.clear(); }
@@ -56,9 +51,6 @@ void	Channel::setTopicOpOnly(bool v)         { _topicOpOnly = v; }
 void	Channel::setUserLimit(int l)            { _userLimit = l; }
 void	Channel::unsetUserLimit()               { _userLimit = -1; }
 
-
-
-// IRC Member functions
 void	Channel::addMember(Client *c)
 {
 	if (!c) return;
@@ -90,10 +82,6 @@ bool	Channel::isMember(const std::string &nick) const
 
 int	Channel::memberCount() const { return (static_cast<int>(_members.size())); }
 
-
-
-
-// IRC operator functions
 void	Channel::addOperator(Client *c)
 {
 	if (!c) return;
@@ -115,8 +103,6 @@ bool	Channel::isOperator(Client *c) const
 	return (false);
 }
 
-
-// IRC invitation functions
 void	Channel::addInvited(const std::string &nick)
 {
 	for (size_t i = 0; i < _invited.size(); ++i)
@@ -137,9 +123,6 @@ void	Channel::removeInvited(const std::string &nick)
 		if (*it == nick) { _invited.erase(it); return; }
 }
 
-
-
-// Broadcast
 void	Channel::broadcast(const std::string &msg) const
 {
 	for (size_t i = 0; i < _members.size(); ++i)
@@ -153,9 +136,6 @@ void	Channel::broadcastExcept(const std::string &msg, int exceptFd) const
 			_members[i]->sendMsg(msg);
 }
 
-
-
-// Other utils
 std::string	Channel::getMemberList() const
 {
 	std::string out;
