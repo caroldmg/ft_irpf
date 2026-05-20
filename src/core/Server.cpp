@@ -151,6 +151,9 @@ void	Server::processMessage(int fd, const IrcMessage &msg)
 	else if (msg.command == "QUIT")    cmdQuit(fd, msg);
 	else if (msg.command == "PING")    cmdPing(fd, msg);
 	else if (msg.command == "PONG")    return;
+	else if (msg.command == "JOIN")    cmdJoin(fd, msg);
+	else if (msg.command == "PART")    cmdPart(fd, msg);
+	else if (msg.command == "PRIVMSG") cmdPrivmsg(fd, msg);
 	else
 	{
 		std::map<int, Client>::iterator it = _clients.find(fd);

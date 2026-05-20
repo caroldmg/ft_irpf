@@ -13,7 +13,8 @@ SRCS		= $(SRCDIR)/main.cpp \
 			  $(SRCDIR)/network/Server_connect.cpp \
 			  $(SRCDIR)/network/Server_recv.cpp \
 			  $(SRCDIR)/network/IrcMessage.cpp \
-			  $(SRCDIR)/commands/Cmd_register.cpp
+			  $(SRCDIR)/commands/Cmd_register.cpp \
+			  $(SRCDIR)/commands/Cmd_channel.cpp
 
 OBJS		= $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 

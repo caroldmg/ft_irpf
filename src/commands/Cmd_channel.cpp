@@ -1,0 +1,178 @@
+#include "Server.hpp"
+#include "Replies.hpp"
+
+static bool isValidChannelName(const std::string &name)
+{
+	if (name.size() < 2 || name[0] != '#') return (false);
+	for (size_t i = 1; i < name.size(); ++i)
+	{
+		char c = name[i];
+		if (c == ' ' || c == ',' || c == '\7' || c == '\r' || c == '\n')
+			return (false);
+	}
+	return (true);
+}
+
+void	Server::cmdJoin(int fd, const IrcMessage &msg)
+{
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+	Client &c = it->second;
+
+	if (!c.isRegistered())
+	{
+		sendReply(fd, ERR_NOTREGISTERED, ":You have not registered");
+		return;
+	}
+	if (msg.params.empty())
+	{
+		sendReply(fd, ERR_NEEDMOREPARAMS, "JOIN :Not enough parameters");
+		return;
+	}
+
+	const std::string &chanName = msg.params[0];
+	const std::string  key      = (msg.params.size() > 1) ? msg.params[1] : "";
+
+	if (!isValidChannelName(chanName))
+	{
+		sendReply(fd, ERR_NOSUCHCHANNEL, chanName + " :No such channel");
+		return;
+	}
+
+	Channel &chan = getOrCreateChannel(chanName);
+
+	if (chan.isMember(&c))
+		return;
+
+	if (chan.isInviteOnly() && !chan.isInvited(c.getNick()))
+	{
+		sendReply(fd, ERR_INVITEONLYCHAN, chanName + " :Cannot join channel (+i)");
+		return;
+	}
+	if (chan.hasKey() && key != chan.getKey())
+	{
+		sendReply(fd, ERR_BADCHANNELKEY, chanName + " :Cannot join channel (+k)");
+		return;
+	}
+	if (chan.hasUserLimit() && chan.memberCount() >= chan.getUserLimit())
+	{
+		sendReply(fd, ERR_CHANNELISFULL, chanName + " :Cannot join channel (+l)");
+		return;
+	}
+
+	bool firstMember = (chan.memberCount() == 0);
+	chan.addMember(&c);
+	if (firstMember)
+		chan.addOperator(&c); // si creas el canal eres admin
+	chan.removeInvited(c.getNick());
+
+	chan.broadcast(":" + c.getPrefix() + " JOIN :" + chanName + "\r\n");
+
+	if (!chan.getTopic().empty())
+		sendReply(fd, RPL_TOPIC, chanName + " :" + chan.getTopic());
+	else
+		sendReply(fd, RPL_NOTOPIC, chanName + " :No topic is set");
+
+	sendReply(fd, RPL_NAMREPLY, "= " + chanName + " :" + chan.getMemberList());
+	sendReply(fd, RPL_ENDOFNAMES, chanName + " :End of /NAMES list");
+}
+
+void	Server::cmdPart(int fd, const IrcMessage &msg)
+{
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+	Client &c = it->second;
+
+	if (!c.isRegistered())
+	{
+		sendReply(fd, ERR_NOTREGISTERED, ":You have not registered");
+		return;
+	}
+	if (msg.params.empty())
+	{
+		sendReply(fd, ERR_NEEDMOREPARAMS, "PART :Not enough parameters");
+		return;
+	}
+
+	const std::string &chanName = msg.params[0];
+	const std::string  reason   = (msg.params.size() > 1) ? msg.params[1] : c.getNick();
+
+	Channel *chan = getChannel(chanName);
+	if (!chan)
+	{
+		sendReply(fd, ERR_NOSUCHCHANNEL, chanName + " :No such channel");
+		return;
+	}
+	if (!chan->isMember(&c))
+	{
+		sendReply(fd, ERR_NOTONCHANNEL, chanName + " :You're not on that channel");
+		return;
+	}
+
+	chan->broadcast(":" + c.getPrefix() + " PART " + chanName + " :" + reason + "\r\n");
+	chan->removeMember(&c);
+
+	if (chan->memberCount() == 0)
+	{
+		for (std::vector<Channel>::iterator ci = _channels.begin(); ci != _channels.end(); ++ci)
+		{
+			if (ci->getName() == chanName)
+			{
+				_channels.erase(ci);
+				break;
+			}
+		}
+	}
+}
+
+void	Server::cmdPrivmsg(int fd, const IrcMessage &msg)
+{
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+	Client &c = it->second;
+
+	if (!c.isRegistered())
+	{
+		sendReply(fd, ERR_NOTREGISTERED, ":You have not registered");
+		return;
+	}
+	if (msg.params.empty())
+	{
+		sendReply(fd, ERR_NORECIPIENT, ":No recipient given (PRIVMSG)");
+		return;
+	}
+	if (msg.params.size() < 2 || msg.params[1].empty())
+	{
+		sendReply(fd, ERR_NOTEXTTOSEND, ":No text to send");
+		return;
+	}
+
+	const std::string &target = msg.params[0];
+	const std::string &text   = msg.params[1];
+
+	if (!target.empty() && target[0] == '#')
+	{
+		Channel *chan = getChannel(target);
+		if (!chan)
+		{
+			sendReply(fd, ERR_NOSUCHCHANNEL, target + " :No such channel");
+			return;
+		}
+		if (!chan->isMember(&c))
+		{
+			sendReply(fd, ERR_CANNOTSENDTOCHAN, target + " :Cannot send to channel");
+			return;
+		}
+		chan->broadcastExcept(":" + c.getPrefix() + " PRIVMSG " + target + " :" + text + "\r\n", fd);
+	}
+	else
+	{
+		Client *dest = getClientByNick(target);
+		if (!dest)
+		{
+			sendReply(fd, ERR_NOSUCHNICK, target + " :No such nick/channel");
+			return;
+		}
+		dest->sendMsg(":" + c.getPrefix() + " PRIVMSG " + target + " :" + text + "\r\n");
+	}
+}

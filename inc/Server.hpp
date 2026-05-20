@@ -55,6 +55,11 @@ class Server
 		void	cmdPing(int fd, const IrcMessage &msg);
 		void	cmdCap(int fd, const IrcMessage &msg);
 
+		// comandos de canal
+		void	cmdJoin(int fd, const IrcMessage &msg);
+		void	cmdPart(int fd, const IrcMessage &msg);
+		void	cmdPrivmsg(int fd, const IrcMessage &msg);
+
 		// helpers
 		void	tryWelcome(int fd);
 		void	sendReply(int fd, const std::string &code, const std::string &body);
