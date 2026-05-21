@@ -176,3 +176,84 @@ void	Server::cmdPrivmsg(int fd, const IrcMessage &msg)
 		dest->sendMsg(":" + c.getPrefix() + " PRIVMSG " + target + " :" + text + "\r\n");
 	}
 }
+
+void	Server::cmdNotice(int fd, const IrcMessage &msg)
+{
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+	Client &c = it->second;
+
+	if (!c.isRegistered())
+		return;
+	if (msg.params.size() < 2 || msg.params[0].empty() || msg.params[1].empty())
+		return;
+
+	const std::string &target = msg.params[0];
+	const std::string &text   = msg.params[1];
+
+	if (!target.empty() && target[0] == '#')
+	{
+		Channel *chan = getChannel(target);
+		if (!chan || !chan->isMember(&c))
+			return;
+		chan->broadcastExcept(":" + c.getPrefix() + " NOTICE " + target + " :" + text + "\r\n", fd);
+	}
+	else
+	{
+		Client *dest = getClientByNick(target);
+		if (!dest)
+			return;
+		dest->sendMsg(":" + c.getPrefix() + " NOTICE " + target + " :" + text + "\r\n");
+	}
+}
+
+void	Server::cmdTopic(int fd, const IrcMessage &msg)
+{
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+	Client &c = it->second;
+
+	if (!c.isRegistered())
+	{
+		sendReply(fd, ERR_NOTREGISTERED, ":You have not registered");
+		return;
+	}
+	if (msg.params.empty())
+	{
+		sendReply(fd, ERR_NEEDMOREPARAMS, "TOPIC :Not enough parameters");
+		return;
+	}
+
+	const std::string &chanName = msg.params[0];
+	Channel *chan = getChannel(chanName);
+	if (!chan)
+	{
+		sendReply(fd, ERR_NOSUCHCHANNEL, chanName + " :No such channel");
+		return;
+	}
+	if (!chan->isMember(&c))
+	{
+		sendReply(fd, ERR_NOTONCHANNEL, chanName + " :You're not on that channel");
+		return;
+	}
+
+	// solo consulta
+	if (msg.params.size() < 2)
+	{
+		if (chan->getTopic().empty())
+			sendReply(fd, RPL_NOTOPIC, chanName + " :No topic is set");
+		else
+			sendReply(fd, RPL_TOPIC, chanName + " :" + chan->getTopic());
+		return;
+	}
+
+	if (chan->isTopicOpOnly() && !chan->isOperator(&c))
+	{
+		sendReply(fd, ERR_CHANOPRIVSNEEDED, chanName + " :You're not channel operator");
+		return;
+	}
+
+	const std::string &newTopic = msg.params[1];
+	chan->setTopic(newTopic);
+	chan->broadcast(":" + c.getPrefix() + " TOPIC " + chanName + " :" + newTopic + "\r\n");
+}
