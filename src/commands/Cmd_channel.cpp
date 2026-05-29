@@ -127,6 +127,8 @@ void	Server::cmdPart(int fd, const IrcMessage &msg)
 
 void	Server::cmdPrivmsg(int fd, const IrcMessage &msg)
 {
+	// el fd es el cliente al que manda un privmsg
+	// para mandarlo a varios será un bucle y ya?
 	std::map<int, Client>::iterator it = _clients.find(fd);
 	if (it == _clients.end()) return;
 	Client &c = it->second;
@@ -146,9 +148,11 @@ void	Server::cmdPrivmsg(int fd, const IrcMessage &msg)
 		sendReply(fd, ERR_NOTEXTTOSEND, ":No text to send");
 		return;
 	}
+	// aqui es donde empieza a separar los argumentos, donde elige el canal y/o el usuario al que mandar el mensaje
 
 	const std::string &target = msg.params[0];
 	const std::string &text   = msg.params[1];
+	std::cout << "[cmdPrivmsg] ---- target --> " << target << std::endl;
 
 	if (!target.empty() && target[0] == '#')
 	{
