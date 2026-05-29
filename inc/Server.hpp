@@ -66,6 +66,8 @@ class Server
 		void	tryWelcome(int fd);
 		void	sendReply(int fd, const std::string &code, const std::string &body);
 		bool	isValidNick(const std::string &nick) const;
+				// carol
+		void	cmdPrivMsgHelper(const std::string &target, const std::string &text, int fd, Client &c);
 
 		// utils
 		Client	*getClientByNick(const std::string &nick);

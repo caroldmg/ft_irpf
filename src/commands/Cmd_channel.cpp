@@ -154,6 +154,40 @@ void	Server::cmdPrivmsg(int fd, const IrcMessage &msg)
 	const std::string &text   = msg.params[1];
 	std::cout << "[cmdPrivmsg] ---- target --> " << target << std::endl;
 
+	// aqui ahora voy a hacer la separacion de argumentos para localizar los targets y hacer el bucle ese
+
+	cmdPrivMsgHelper(target, text, fd, c);
+	
+	/* if (!target.empty() && target[0] == '#')
+	{
+		Channel *chan = getChannel(target);
+		if (!chan)
+		{
+			sendReply(fd, ERR_NOSUCHCHANNEL, target + " :No such channel");
+			return;
+		}
+		if (!chan->isMember(&c))
+		{
+			sendReply(fd, ERR_CANNOTSENDTOCHAN, target + " :Cannot send to channel");
+			return;
+		}
+		chan->broadcastExcept(":" + c.getPrefix() + " PRIVMSG " + target + " :" + text + "\r\n", fd);
+	}
+	else
+	{
+		Client *dest = getClientByNick(target);
+		if (!dest)
+		{
+			sendReply(fd, ERR_NOSUCHNICK, target + " :No such nick/channel");
+			return;
+		}
+		dest->sendMsg(":" + c.getPrefix() + " PRIVMSG " + target + " :" + text + "\r\n");
+	} */
+}
+
+void	Server::cmdPrivMsgHelper(const std::string &target, const std::string &text, int fd, Client &c)
+{
+	// para que esto funcione tengo que pasarle el server, o hacerlo dentro de la propia clase? 
 	if (!target.empty() && target[0] == '#')
 	{
 		Channel *chan = getChannel(target);
@@ -261,3 +295,4 @@ void	Server::cmdTopic(int fd, const IrcMessage &msg)
 	chan->setTopic(newTopic);
 	chan->broadcast(":" + c.getPrefix() + " TOPIC " + chanName + " :" + newTopic + "\r\n");
 }
+
