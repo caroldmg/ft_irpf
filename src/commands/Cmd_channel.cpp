@@ -1,6 +1,9 @@
 #include "Server.hpp"
 #include "Replies.hpp"
 
+#include <cstdlib>
+#include <sstream>
+
 static bool isValidChannelName(const std::string &name)
 {
 	if (name.size() < 2 || name[0] != '#') return (false);
@@ -256,4 +259,169 @@ void	Server::cmdTopic(int fd, const IrcMessage &msg)
 	const std::string &newTopic = msg.params[1];
 	chan->setTopic(newTopic);
 	chan->broadcast(":" + c.getPrefix() + " TOPIC " + chanName + " :" + newTopic + "\r\n");
+}
+
+void	Server::cmdMode(int fd, const IrcMessage &msg)
+{
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+	Client &c = it->second;
+
+	if (!c.isRegistered())
+	{
+		sendReply(fd, ERR_NOTREGISTERED, ":You have not registered");
+		return;
+	}
+
+	if (msg.params.size() < 2)
+	{
+		sendReply(fd, ERR_NEEDMOREPARAMS, "MODE :Not enough parameters");
+		return;
+	}
+
+	const std::string &chanName = msg.params[0];
+
+	Channel *chan = getChannel(chanName);
+	if (!chan)
+	{
+		sendReply(fd, ERR_NOSUCHCHANNEL, chanName + " :No such channel");
+		return;
+	}
+
+	if (!chan->isMember(&c))
+	{
+		sendReply(fd, ERR_NOTONCHANNEL, chanName + " :You're not on that channel");
+		return;
+	}
+
+	if (!chan->isOperator(&c))
+	{
+		sendReply(fd, ERR_CHANOPRIVSNEEDED, chanName + " :You're not channel operator");
+		return;
+	}
+
+	std::string flags;
+	std::vector<std::string> args;
+
+	for (size_t i = 1; i < msg.params.size(); ++i)
+	{
+		const std::string &param = msg.params[i];
+		if (!param.empty() && (param[0] == '+' || param[0] == '-'))
+			flags += param;
+		else
+			args.push_back(param);
+	}
+
+	bool adding = true;
+	size_t argIndex = 0;
+
+	for (size_t i = 0; i < flags.size(); ++i)
+	{
+		char flag = flags[i];
+
+		if (flag == '+') { adding = true; continue; }
+		if (flag == '-') { adding = false; continue; }
+
+		switch (flag)
+		{
+			// ----------------------------- MODE +i / -i (invite only)   -----------------------------
+			case 'i':
+			{
+				chan->setInviteOnly(adding);
+				chan->broadcast(":" + c.getPrefix() + " MODE " + chanName + " " + (adding ? "+i" : "-i") + "\r\n");
+				break;
+			}
+
+			// ----------------------------- MODE +t / -t (topic op only) -----------------------------
+			case 't':
+			{
+				chan->setTopicOpOnly(adding);
+				chan->broadcast(":" + c.getPrefix() + " MODE " + chanName + " " + (adding ? "+t" : "-t") + "\r\n");
+				break;
+			}
+
+			// ----------------------------- MODE +k / -k (key)           -----------------------------
+			case 'k':
+			{
+				if (adding)
+				{
+					if (argIndex >= args.size())
+					{
+						sendReply(fd, ERR_NEEDMOREPARAMS, "MODE :Not enough parameters for +k");
+						return;
+					}
+
+					const std::string &key = args[argIndex++];
+					chan->setKey(key);
+					chan->broadcast(":" + c.getPrefix() + " MODE " + chanName + " +k " + key + "\r\n");
+				}
+				else
+				{
+					chan->unsetKey();
+					chan->broadcast(":" + c.getPrefix() + " MODE " + chanName + " -k\r\n");
+				}
+				break;
+			}
+
+			// ----------------------------- MODE +o nick / -o nick (operator)    -----------------------------
+			case 'o':
+			{
+				if (argIndex >= args.size())
+				{
+					sendReply(fd, ERR_NEEDMOREPARAMS, "MODE :Not enough parameters for +o/-o");
+					return;
+				}
+
+				const std::string &nick = args[argIndex++];
+				Client *target = getClientByNick(nick);
+				
+				if (!target || !chan->isMember(target))
+				{
+					sendReply(fd, ERR_USERNOTINCHANNEL, nick + " " + chanName + " :They aren't on that channel");
+					break;
+				}
+
+				if (adding)
+					chan->addOperator(target);
+				else
+					chan->removeOperator(target);
+
+				chan->broadcast(":" + c.getPrefix() + " MODE " + chanName + " " + (adding ? "+o " : "-o ") + nick + "\r\n");
+				break;
+			}
+
+			// ----------------------------- MODE +l / -l (user limit)    -----------------------------
+			case 'l':
+			{
+				if (adding)
+				{
+					if (argIndex >= args.size())
+					{
+						sendReply(fd, ERR_NEEDMOREPARAMS, "MODE :Not enough parameters for +l");
+						return;
+					}
+
+					int limit = atoi(args[argIndex++].c_str());
+					chan->setUserLimit(limit);
+
+					std::ostringstream oss;
+					oss << limit;
+					std::string limitStr = oss.str();
+					chan->broadcast(":" + c.getPrefix() + " MODE " + chanName + " +l " + limitStr + "\r\n");
+				}
+				else
+				{
+					chan->unsetUserLimit();
+					chan->broadcast(":" + c.getPrefix() + " MODE " + chanName + " -l\r\n");
+				}
+				break;
+			}
+
+			default:
+			{
+				sendReply(fd, ERR_UNKNOWNMODE, std::string(1, flag) + " :is unknown mode");
+				break;
+			}
+		}
+	}
 }

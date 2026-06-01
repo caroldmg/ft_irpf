@@ -61,6 +61,7 @@ class Server
 		void	cmdPrivmsg(int fd, const IrcMessage &msg);
 		void	cmdNotice(int fd, const IrcMessage &msg);
 		void	cmdTopic(int fd, const IrcMessage &msg);
+		void	cmdMode(int fd, const IrcMessage &msg);
 
 		// helpers
 		void	tryWelcome(int fd);
