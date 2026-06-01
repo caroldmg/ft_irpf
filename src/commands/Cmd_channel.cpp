@@ -125,6 +125,63 @@ void	Server::cmdPart(int fd, const IrcMessage &msg)
 	}
 }
 
+void Server::cmdKick(int fd, const IrcMessage &msg)
+{
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+	Client &c = it->second;
+
+	if (!c.isRegistered())
+	{
+		sendReply(fd, ERR_NOTREGISTERED, ":You have not registered");
+		return;
+	}
+	if (msg.params.empty() || msg.params.size() < 3)
+	{
+		sendReply(fd, ERR_NEEDMOREPARAMS, "KICK :Not enough parameters");
+		return;
+	}
+
+	// primero voy a poner que elimine a solo uno de cada vez, no sé si debería hacer que eliminase a varios?
+	const std::string &chanName = msg.params[0];
+	// const std::string  reason   = (msg.params.size() > 1) ? msg.params[1] : c.getNick();
+	const std::string &target = msg.params[1];
+	// para poder echar a un usuario necesito su cliente,
+	const std::string &userToKick = msg.params[2];
+
+	Channel *chan = getChannel(chanName);
+	if (!chan)
+	{
+		sendReply(fd, ERR_NOSUCHCHANNEL, chanName + " :No such channel");
+		return;
+	}
+	if (!chan->isMember(&c))
+	{
+		sendReply(fd, ERR_NOTONCHANNEL, chanName + " :You're not on that channel");
+		return;
+	}
+
+	// añadir verificacion de si el usuario que está haciendo la accion es operador
+	if (!chan->isOperator(&c))
+	{
+		sendReply(fd, ERR_NOTONCHANNEL, chanName + " :You're not a channel operator");
+		return;
+	}
+	if (!chan->isMember(userToKick))
+	{
+		sendReply(fd, ERR_NOTONCHANNEL, chanName + " : User" + userToKick + " not on that channel");
+	}
+	
+	Client *u = chan->getMemberByNick(userToKick);
+
+	if (u != NULL)
+	{
+		chan->broadcast(":" + c.getPrefix() + " KICK " + userToKick + " from " + chanName + "\r\n"); //+ " :" + reason + "\r\n");
+		chan->removeMember(u);
+	}
+
+}
+
 void	Server::cmdPrivmsg(int fd, const IrcMessage &msg)
 {
 	// el fd es el cliente al que manda un privmsg

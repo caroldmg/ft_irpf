@@ -58,6 +58,7 @@ class Server
 		// comandos de canal
 		void	cmdJoin(int fd, const IrcMessage &msg);
 		void	cmdPart(int fd, const IrcMessage &msg);
+		void	cmdKick(int fd, const IrcMessage &msg);
 		void	cmdPrivmsg(int fd, const IrcMessage &msg);
 		void	cmdNotice(int fd, const IrcMessage &msg);
 		void	cmdTopic(int fd, const IrcMessage &msg);
