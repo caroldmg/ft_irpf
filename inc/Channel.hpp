@@ -54,6 +54,7 @@ class Channel
 		std::string	getModeString() const;
 
 		const std::vector<Client *>	&getMembers() const;
+		Client *getMemberByNick(const std::string &nick) const;
 
 	private:
 		std::string	_name;
