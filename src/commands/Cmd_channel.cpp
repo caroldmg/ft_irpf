@@ -357,6 +357,9 @@ void	Server::cmdMode(int fd, const IrcMessage &msg)
 				}
 				else
 				{
+					if (argIndex < args.size())
+						argIndex++;
+				
 					chan->unsetKey();
 					chan->broadcast(":" + c.getPrefix() + " MODE " + chanName + " -k\r\n");
 				}
