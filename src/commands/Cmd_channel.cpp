@@ -164,7 +164,7 @@ void Server::cmdKick(int fd, const IrcMessage &msg)
 	// añadir verificacion de si el usuario que está haciendo la accion es operador
 	if (!chan->isOperator(&c))
 	{
-		sendReply(fd, ERR_NOTONCHANNEL, chanName + " :You're not a channel operator");
+		sendReply(fd, ERR_CHANOPRIVSNEEDED, chanName + " :You're not a channel operator");
 		return;
 	}
 	if (!chan->isMember(userToKick))
@@ -327,3 +327,55 @@ void	Server::cmdTopic(int fd, const IrcMessage &msg)
 	chan->broadcast(":" + c.getPrefix() + " TOPIC " + chanName + " :" + newTopic + "\r\n");
 }
 
+void	Server::cmdInvite(int fd, const IrcMessage &msg)
+{
+	std::map<int, Client>::iterator it = _clients.find(fd);
+		if (it == _clients.end()) return;
+	Client &c = it->second;
+
+	if (!c.isRegistered())
+	{
+		sendReply(fd, ERR_NOTREGISTERED, ":You have not registered");
+		return;
+	}
+	if (msg.params.size() < 2 || msg.params[0].empty() || msg.params[1].empty())
+		return;
+	const std::string &target = msg.params[0];
+	const std::string &chanName   = msg.params[1];
+
+	if (msg.params.empty() || msg.params.size() < 3)
+	{
+		sendReply(fd, ERR_NEEDMOREPARAMS, "KICK :Not enough parameters");
+		return;
+	}
+
+	Channel *chan = getChannel(chanName);
+	if (!chan)
+	{
+		sendReply(fd, ERR_NOSUCHCHANNEL, chanName + " :No such channel");
+		return;
+	}
+	if (!chan->isMember(&c))
+	{
+		sendReply(fd, ERR_NOTONCHANNEL, chanName + " :You're not on that channel");
+		return;
+	}
+	if (!chan->isMember(target))
+	{
+		sendReply(fd, ERR_USERONCHANNEL, chanName + " : " + target + " already in channel");
+		return;
+	}
+	if (chan->getModeString().find('i') != std::string::npos)
+	{
+		if (!chan->isOperator(&c))
+		{
+			sendReply(fd, ERR_CHANOPRIVSNEEDED, chanName + " :You're not a channel operator");
+			return;
+		}
+	}
+
+	chan->addInvited(target);
+	Client *dest = getClientByNick(target);
+	dest->sendMsg(":" + c.getPrefix() + " INVITE " + target + ":" + chanName + "\r\n");
+
+}
