@@ -2,6 +2,7 @@
 # define REPLIES_HPP
 
 # include <string>
+# include <iostream>
 
 // Formato general:  ":<server> <code> <nick> <contenido>\r\n"
 // Si el cliente todavia no tiene nick, usamos "*".

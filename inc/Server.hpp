@@ -58,15 +58,19 @@ class Server
 		// comandos de canal
 		void	cmdJoin(int fd, const IrcMessage &msg);
 		void	cmdPart(int fd, const IrcMessage &msg);
+		void	cmdKick(int fd, const IrcMessage &msg);
 		void	cmdPrivmsg(int fd, const IrcMessage &msg);
 		void	cmdNotice(int fd, const IrcMessage &msg);
 		void	cmdTopic(int fd, const IrcMessage &msg);
 		void	cmdMode(int fd, const IrcMessage &msg);
+		void	cmdInvite(int fd, const IrcMessage &msg);
 
 		// helpers
 		void	tryWelcome(int fd);
 		void	sendReply(int fd, const std::string &code, const std::string &body);
 		bool	isValidNick(const std::string &nick) const;
+				// carol
+		void	cmdPrivMsgHelper(const std::string &target, const std::string &text, int fd, Client &c);
 
 		// utils
 		Client	*getClientByNick(const std::string &nick);

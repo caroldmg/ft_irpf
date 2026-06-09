@@ -157,6 +157,8 @@ void	Server::processMessage(int fd, const IrcMessage &msg)
 	else if (msg.command == "NOTICE")  cmdNotice(fd, msg);
 	else if (msg.command == "TOPIC")   cmdTopic(fd, msg);
 	else if (msg.command == "MODE")    cmdMode(fd, msg);
+	else if (msg.command == "KICK")    cmdKick(fd, msg);
+	else if (msg.command == "INVITE")  cmdInvite(fd, msg);
 	else
 	{
 		std::map<int, Client>::iterator it = _clients.find(fd);

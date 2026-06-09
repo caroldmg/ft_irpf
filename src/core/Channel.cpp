@@ -165,3 +165,15 @@ std::string	Channel::getModeString() const
 }
 
 const std::vector<Client *>	&Channel::getMembers() const { return (_members); }
+
+Client *Channel::getMemberByNick(const std::string &nick) const
+{
+    for (std::vector<Client *>::const_iterator it = _members.begin();
+         it != _members.end();
+         ++it)
+    {
+        if ((*it)->getNick() == nick)
+            return *it;
+    }
+    return NULL;
+}
