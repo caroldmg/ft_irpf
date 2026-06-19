@@ -18,6 +18,14 @@ SRCS		= $(SRCDIR)/main.cpp \
 
 OBJS		= $(SRCS:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 
+# ── Bonus: bot IRC (binario independiente) ──────────────────────────────────────
+BOT_NAME	= ircbot
+BOT_DIR		= bonus
+BOT_SRCS	= $(BOT_DIR)/src/bot.cpp \
+			  $(BOT_DIR)/src/main.cpp
+BOT_OBJS	= $(BOT_SRCS:$(BOT_DIR)/src/%.cpp=$(OBJDIR)/bonus/%.o)
+BOT_FLAGS	= -Wall -Wextra -Werror -std=c++98 -I$(BOT_DIR)/inc
+
 all: $(NAME)
 
 $(NAME): $(OBJS)
@@ -27,11 +35,21 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+bonus: $(BOT_NAME)
+
+$(BOT_NAME): $(BOT_OBJS)
+	$(CXX) $(BOT_FLAGS) $(BOT_OBJS) -o $(BOT_NAME)
+
+$(OBJDIR)/bonus/%.o: $(BOT_DIR)/src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(BOT_FLAGS) -c $< -o $@
+
 clean:
 	rm -rf $(OBJDIR)
 
 fclean: clean
 	rm -f $(NAME)
+	rm -f $(BOT_NAME)
 	rm -f tests/unit/test_parser
 
 re: fclean all
@@ -63,4 +81,4 @@ test: all test_build
 	@chmod +x tests/run_all.sh tests/integration/common.sh tests/integration/test_*.sh
 	@bash tests/run_all.sh
 
-.PHONY: all clean fclean re test test_build test_unit test_integration
+.PHONY: all bonus clean fclean re test test_build test_unit test_integration

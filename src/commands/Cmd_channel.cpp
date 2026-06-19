@@ -139,18 +139,16 @@ void Server::cmdKick(int fd, const IrcMessage &msg)
 		sendReply(fd, ERR_NOTREGISTERED, ":You have not registered");
 		return;
 	}
-	if (msg.params.empty() || msg.params.size() < 3)
+	if (msg.params.size() < 2)
 	{
 		sendReply(fd, ERR_NEEDMOREPARAMS, "KICK :Not enough parameters");
 		return;
 	}
 
-	// primero voy a poner que elimine a solo uno de cada vez, no sé si debería hacer que eliminase a varios?
-	const std::string &chanName = msg.params[0];
-	// const std::string  reason   = (msg.params.size() > 1) ? msg.params[1] : c.getNick();
-	const std::string &target = msg.params[1];
-	// para poder echar a un usuario necesito su cliente,
-	const std::string &userToKick = msg.params[2];
+	// KICK #channel nick [:reason]  — params[0]=channel, params[1]=nick, params[2]=reason (optional)
+	const std::string &chanName   = msg.params[0];
+	const std::string &userToKick = msg.params[1];
+	const std::string  reason     = (msg.params.size() > 2) ? msg.params[2] : c.getNick();
 
 	Channel *chan = getChannel(chanName);
 	if (!chan)
@@ -164,7 +162,6 @@ void Server::cmdKick(int fd, const IrcMessage &msg)
 		return;
 	}
 
-	// añadir verificacion de si el usuario que está haciendo la accion es operador
 	if (!chan->isOperator(&c))
 	{
 		sendReply(fd, ERR_CHANOPRIVSNEEDED, chanName + " :You're not a channel operator");
@@ -172,14 +169,15 @@ void Server::cmdKick(int fd, const IrcMessage &msg)
 	}
 	if (!chan->isMember(userToKick))
 	{
-		sendReply(fd, ERR_NOTONCHANNEL, chanName + " : User" + userToKick + " not on that channel");
+		sendReply(fd, ERR_NOTONCHANNEL, chanName + " :" + userToKick + " not on that channel");
+		return;
 	}
-	
+
 	Client *u = chan->getMemberByNick(userToKick);
 
 	if (u != NULL)
 	{
-		chan->broadcast(":" + c.getPrefix() + " KICK " + userToKick + " from " + chanName + "\r\n"); //+ " :" + reason + "\r\n");
+		chan->broadcast(":" + c.getPrefix() + " KICK " + chanName + " " + userToKick + " :" + reason + "\r\n");
 		chan->removeMember(u);
 	}
 
@@ -527,7 +525,7 @@ void	Server::cmdInvite(int fd, const IrcMessage &msg)
 	}
 	if (chan->isMember(target))
 	{
-		sendReply(fd, ERR_USERONCHANNEL, chanName + " : " + target + " already in channel");
+		sendReply(fd, ERR_USERONCHANNEL, chanName + " :" + target + " already in channel");
 		return;
 	}
 	if (chan->getModeString().find('i') != std::string::npos)
@@ -539,8 +537,14 @@ void	Server::cmdInvite(int fd, const IrcMessage &msg)
 		}
 	}
 
-	chan->addInvited(target);
 	Client *dest = getClientByNick(target);
-	dest->sendMsg(":" + c.getPrefix() + " INVITE " + target + ":" + chanName + "\r\n");
+	if (!dest)
+	{
+		sendReply(fd, ERR_NOSUCHNICK, target + " :No such nick/channel");
+		return;
+	}
 
+	chan->addInvited(target);
+	sendReply(fd, RPL_INVITING, target + " " + chanName);
+	dest->sendMsg(":" + c.getPrefix() + " INVITE " + target + " :" + chanName + "\r\n");
 }
