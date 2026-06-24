@@ -110,7 +110,7 @@ NOTICE bob :esto es un aviso
 
 ## 2. Tests de los comandos nuevos
 
-### 2.1 PRIVMSG multitarget ⚠️ (sospecha de bug)
+### 2.1 PRIVMSG multitarget 
 
 Tres clientes: alice, bob, carol. Alice manda:
 
@@ -130,7 +130,7 @@ PRIVMSG #general,bob :prueba mixta
 
 **Esperado:** todos los miembros de `#general` (menos alice) reciben el mensaje, y bob también.
 
-### 2.2 KICK con razón ⚠️ (sospecha de bug)
+### 2.2 KICK con razón 
 
 Alice operadora de `#test`, bob dentro:
 
@@ -142,7 +142,7 @@ KICK #test bob :spam
 
 **Sospecha:** el código de Carol puede usar un formato de broadcast no-RFC tipo `"KICK bob from #test"` en vez del estándar `"KICK #canal nick :razón"`. Verificar el formato exacto.
 
-### 2.3 KICK sin razón ⚠️ (sospecha de bug)
+### 2.3 KICK sin razón 
 
 ```
 KICK #test bob
@@ -170,7 +170,7 @@ KICK #test pepito :fuera
 
 **Esperado:** error 441 (`USERNOTINCHANNEL`).
 
-### 2.6 INVITE básico ⚠️ (sospecha de bug)
+### 2.6 INVITE básico 
 
 Alice operadora de `#priv` con modo `+i`:
 
