@@ -86,7 +86,11 @@ std::string	Bot::makePpSize()
 	int cm = n + (std::rand() % 5);           // medida en cm, ~ proporcional
 
 	std::ostringstream oss;
-	oss << "8" << shaft << "D  (" << cm << " cm)";
+
+	if (rand() % 100  < 5)
+		oss << "Te parecen bien 47 cm??? 😏👅    8" << "==========================================" << "D  ( 47 cm)";
+	else
+		oss << "8" << shaft << "D  (" << cm << " cm)";
 	return (oss.str());
 }
 
