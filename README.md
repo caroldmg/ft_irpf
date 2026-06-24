@@ -1,127 +1,107 @@
+*This project has been created as part of the 42 curriculum by cde-migu, mcaro-ro, asaiz-lo.*
 
-## 📑 Índice
  
-- [Sobre el proyecto](#-sobre-el-proyecto)
-- [El protocolo IRC](#-el-protocolo-irc)
-- [Parte obligatoria](#-parte-obligatoria)
-- [Comandos soportados](#-comandos-soportados)
-- [Modos de canal](#-modos-de-canal)
-- [Bonus](#-bonus-ircbot)
-- [Estructura del proyecto](#-estructura-del-proyecto)
-- [Compilación](#️-compilación)
-- [Uso](#-uso)
-- [Ejemplo de sesión](#-ejemplo-de-sesión)
-- [Tests](#-tests)
-- [Recursos](#-recursos)
+## Table of Contents
+ 
+- [Description](#description)
+- [Features](#features)
+- [Supported Commands](#supported-commands)
+- [Channel Modes](#channel-modes)
+- [Bonus](#bonus-ircbot)
+- [Project Structure](#project-structure)
+- [Instructions](#instructions)
+- [Usage Example](#usage-example)
+- [Tests](#tests)
+- [Technical Choices](#technical-choices)
+- [Resources](#resources)
 ---
  
-## 📖 Sobre el proyecto
+## Description
  
-`ft_irc` consiste en implementar un **servidor IRC** desde cero en **C++98**, capaz de
-atender a múltiples clientes de forma simultánea sin nunca bloquearse. La comunicación
-se gestiona con un único `poll()` (I/O multiplexado y no bloqueante) sobre sockets TCP/IP,
-respetando el subconjunto del estándar IRC necesario para conectarse con un cliente real
-como **HexChat**, **WeeChat** o **irssi**.
+`ft_irc` is an implementation of an **IRC (Internet Relay Chat) server** written from
+scratch in **C++98**. Its goal is to build a server able to handle multiple clients
+**simultaneously and without ever blocking**, communicating over TCP/IP and respecting
+the subset of the IRC standard required to connect with a real reference client such as
+**HexChat**, **WeeChat** or **irssi**.
  
-El objetivo es entender cómo funciona la programación de red de bajo nivel: sockets,
-gestión de eventos, troceado de mensajes por `\r\n`, registro de usuarios, canales,
-operadores y difusión de mensajes.
+All input/output is multiplexed through a **single `poll()`** call: there is no forking,
+no threading and no blocking read/write operations, so the server never hangs waiting on
+a client. The project covers low-level network programming concepts — sockets, event
+handling, message framing by `\r\n`, user registration, channels, channel operators and
+message broadcasting.
  
-> ⚠️ Todo el I/O pasa por **un solo** `poll()`. No hay forking, ni hilos, ni lecturas/escrituras
-> bloqueantes: el servidor jamás debe quedarse colgado esperando a un cliente.
+A connection always follows the same flow:
  
+1. The client sends the server password with `PASS`.
+2. It identifies itself with `NICK` (nickname) and `USER` (username + real name).
+3. Once the handshake is complete, the server replies with the welcome numerics
+   (`001`, `002`, `003`, `004`) and the client can join channels and chat.
 ---
  
-## 🌐 El protocolo IRC
+## Features
  
-IRC funciona en modo texto sobre TCP. Cada mensaje termina en `\r\n` y sigue la forma:
- 
-```
-[:prefix] COMMAND [params] [:trailing]
-```
- 
-El flujo de una conexión es siempre el mismo:
- 
-1. El cliente envía la contraseña con `PASS`.
-2. Se identifica con `NICK` (apodo) y `USER` (usuario + nombre real).
-3. Una vez completado el *handshake*, el servidor responde con la bienvenida
-   (códigos `001`, `002`, `003`, `004`) y el cliente ya puede unirse a canales y hablar.
+- **Single `poll()`** for every connection (listening socket + all clients).
+- **Per-client buffer**: partial messages are accumulated and only processed once a full
+  line terminated by `\r\n` is received (correct handling of fragmented TCP streams).
+- **Signal handling** (`SIGINT`, `SIGTERM`) for a clean shutdown, and `SIGPIPE` ignored.
+- **Argument validation**: port in the `1–65535` range and a non-empty password.
+- Full user **registration** flow with password authentication.
+- **Channels** with operators, topics, invitations and the mandatory channel modes.
+- Private and channel **messaging** (`PRIVMSG` / `NOTICE`).
+- Compatible with a **reference IRC client**.
+- Builds with `-Wall -Wextra -Werror` and **no external libraries**.
 ---
  
-## ✅ Parte obligatoria
+## Supported Commands
  
-| Requisito | Estado |
-|-----------|:------:|
-| Servidor TCP/IP no bloqueante con un único `poll()` | ✔️ |
-| Atención simultánea a múltiples clientes | ✔️ |
-| Autenticación por contraseña (`PASS`) | ✔️ |
-| Registro de usuario: `NICK` / `USER` | ✔️ |
-| Creación y gestión de canales | ✔️ |
-| Mensajería privada y a canales (`PRIVMSG`) | ✔️ |
-| Operadores de canal y comandos de operador | ✔️ |
-| Gestión correcta de desconexiones y señales | ✔️ |
-| Compatibilidad con un cliente IRC de referencia | ✔️ |
-| `C++98`, sin librerías externas, flags `-Wall -Wextra -Werror` | ✔️ |
+### Registration & connection
  
-Características técnicas destacadas:
- 
-- **Un solo `poll()`** para todas las conexiones (servidor + clientes).
-- **Buffer por cliente**: los mensajes parciales se acumulan y se procesan solo cuando
-  llega una línea completa terminada en `\r\n` (manejo de TCP fragmentado).
-- Gestión de **señales** (`SIGINT`, `SIGTERM`) para un apagado limpio, e ignorado de `SIGPIPE`.
-- Validación de argumentos: puerto en rango `1–65535` y contraseña no vacía.
----
- 
-## 💬 Comandos soportados
- 
-### Registro y conexión
- 
-| Comando | Descripción |
+| Command | Description |
 |---------|-------------|
-| `PASS`  | Envía la contraseña del servidor |
-| `NICK`  | Establece o cambia el apodo |
-| `USER`  | Registra usuario y nombre real |
-| `CAP`   | Negociación de *capabilities* (handshake con clientes modernos) |
-| `PING` / `PONG` | Comprobación de conexión (keep-alive) |
-| `QUIT`  | Cierra la sesión y desconecta al cliente |
+| `PASS`  | Send the server password |
+| `NICK`  | Set or change the nickname |
+| `USER`  | Register username and real name |
+| `CAP`   | Capability negotiation (handshake with modern clients) |
+| `PING` / `PONG` | Connection keep-alive check |
+| `QUIT`  | Close the session and disconnect the client |
  
-### Canales y mensajería
+### Channels & messaging
  
-| Comando | Descripción |
+| Command | Description |
 |---------|-------------|
-| `JOIN`    | Unirse (o crear) un canal |
-| `PART`    | Abandonar un canal |
-| `PRIVMSG` | Enviar mensaje a un usuario o canal |
-| `NOTICE`  | Enviar aviso (sin respuesta automática de error) |
-| `TOPIC`   | Consultar o cambiar el tema del canal |
-| `KICK`    | Expulsar a un usuario del canal (operador) |
-| `INVITE`  | Invitar a un usuario a un canal (operador) |
-| `MODE`    | Cambiar los modos del canal (operador) |
+| `JOIN`    | Join (or create) a channel |
+| `PART`    | Leave a channel |
+| `PRIVMSG` | Send a message to a user or channel |
+| `NOTICE`  | Send a notice (no automatic error reply) |
+| `TOPIC`   | View or change the channel topic |
+| `KICK`    | Eject a user from a channel (operator) |
+| `INVITE`  | Invite a user to a channel (operator) |
+| `MODE`    | Change channel modes (operator) |
  
 ---
  
-## 🔧 Modos de canal
+## Channel Modes
  
-El comando `MODE` implementa los modos exigidos por el subject:
+The `MODE` command implements the modes required by the subject:
  
-| Modo | Efecto |
+| Mode | Effect |
 |:----:|--------|
-| `+i` / `-i` | Canal solo por invitación (*invite-only*) |
-| `+t` / `-t` | Solo los operadores pueden cambiar el `TOPIC` |
-| `+k` / `-k` | Establece o elimina una contraseña de canal (*key*) |
-| `+o` / `-o` | Concede o retira el privilegio de operador a un usuario |
-| `+l` / `-l` | Limita o elimina el límite de usuarios del canal |
+| `+i` / `-i` | Invite-only channel |
+| `+t` / `-t` | Only operators may change the `TOPIC` |
+| `+k` / `-k` | Set or remove a channel password (key) |
+| `+o` / `-o` | Grant or revoke operator privilege to a user |
+| `+l` / `-l` | Set or remove the channel user limit |
  
 ---
  
-## 🤖 Bonus: `ircbot`
+## Bonus: `ircbot`
  
-Como parte bonus se incluye **PPBot**, un cliente IRC independiente que se conecta al
-servidor (o a cualquier servidor IRC de referencia) y responde de forma automática:
+The bonus part includes **PPBot**, a standalone IRC client that connects to the server
+(or to any reference IRC server) and replies automatically:
  
-- Reacciona al comando `ppsize` tanto en **PRIVMSG directos** como en **mensajes de canal**.
-- Si lo **invitan** a un canal (`INVITE`), se une automáticamente.
-- Responde a los `PING` del servidor con `PONG` para mantener viva la conexión.
+- Reacts to the `ppsize` command both in **direct PRIVMSG** and in **channel messages**.
+- **Auto-joins** a channel when it is invited (`INVITE`).
+- Replies to the server's `PING` with `PONG` to keep the connection alive.
 ```bash
 make bonus
 ./ircbot <host> <port> <password> [nick]
@@ -129,33 +109,33 @@ make bonus
  
 ---
  
-## 🗂 Estructura del proyecto
+## Project Structure
  
 ```
-ft_irpf/
-├── inc/                     # Cabeceras del servidor
+ft_irc/
+├── inc/                     # Server headers
 │   ├── Server.hpp
 │   ├── Client.hpp
 │   ├── Channel.hpp
 │   ├── IrcMessage.hpp
 │   └── Replies.hpp
 ├── src/
-│   ├── main.cpp             # Parseo de argumentos, señales y arranque
-│   ├── core/                # Lógica de dominio
+│   ├── main.cpp             # Argument parsing, signals and startup
+│   ├── core/                # Domain logic
 │   │   ├── Server.cpp
 │   │   ├── Client.cpp
 │   │   └── Channel.cpp
-│   ├── network/             # Capa de red
+│   ├── network/             # Network layer
 │   │   ├── Server_connect.cpp
 │   │   ├── Server_recv.cpp
-│   │   └── IrcMessage.cpp   # Parser del protocolo
-│   └── commands/            # Implementación de comandos
+│   │   └── IrcMessage.cpp   # Protocol parser
+│   └── commands/            # Command implementations
 │       ├── Cmd_register.cpp
 │       └── Cmd_channel.cpp
-├── bonus/                   # Bot IRC (binario independiente)
+├── bonus/                   # IRC bot (standalone binary)
 │   ├── inc/bot.hpp
 │   └── src/{bot.cpp,main.cpp}
-├── tests/                   # Suite de pruebas (unit + integration)
+├── tests/                   # Test suite (unit + integration)
 │   ├── unit/test_parser.cpp
 │   ├── integration/*.sh
 │   ├── run_all.sh
@@ -165,18 +145,9 @@ ft_irpf/
  
 ---
  
-## ⚙️ Compilación
+## Instructions
  
-| Regla | Acción |
-|-------|--------|
-| `make` / `make all` | Compila el servidor `ircserv` |
-| `make bonus`        | Compila el bot `ircbot` |
-| `make clean`        | Elimina los objetos (`obj/`) |
-| `make fclean`       | Elimina objetos y binarios |
-| `make re`           | `fclean` + `all` |
-| `make test`         | Ejecuta toda la suite de tests |
-| `make test_unit`    | Solo tests unitarios del parser |
-| `make test_integration` | Solo tests de integración |
+### Build
  
 ```bash
 git clone https://github.com/caroldmg/ft_irpf.git
@@ -184,24 +155,35 @@ cd ft_irpf
 make
 ```
  
----
+Available Makefile rules:
  
-## 🚀 Uso
+| Rule | Action |
+|------|--------|
+| `make` / `make all` | Build the `ircserv` server |
+| `make bonus`        | Build the `ircbot` bot |
+| `make clean`        | Remove object files (`obj/`) |
+| `make fclean`       | Remove objects and binaries |
+| `make re`           | `fclean` + `all` |
+| `make test`         | Run the full test suite |
+| `make test_unit`    | Run only the parser unit tests |
+| `make test_integration` | Run only the integration tests |
+ 
+### Run
  
 ```bash
 ./ircserv <port> <password>
 ```
  
-- `<port>`: puerto de escucha (entero entre 1 y 65535).
-- `<password>`: contraseña que deberán enviar los clientes para conectarse.
-Ejemplo:
+- `<port>`: listening port (integer between 1 and 65535).
+- `<password>`: password clients must send to connect.
+Example:
  
 ```bash
-./ircserv 6667 contra
+./ircserv 6667 mypassword
 ```
  
-Después, conéctate con tu cliente favorito (por ejemplo HexChat) apuntando a
-`localhost:6667` y usando esa misma contraseña, o prueba rápidamente con `netcat`:
+Then connect with your favourite client (e.g. HexChat) pointing to `localhost:6667`
+with that same password, or test quickly with `netcat`:
  
 ```bash
 nc localhost 6667
@@ -209,39 +191,52 @@ nc localhost 6667
  
 ---
  
-## 🧪 Ejemplo de sesión
+## Usage Example
  
 ```text
-PASS contra
+PASS mypassword
 NICK alice
 USER alice 0 * :Alice Doe
 JOIN #42
-TOPIC #42 :Bienvenidos al canal
-PRIVMSG #42 :Hola a todos!
+TOPIC #42 :Welcome to the channel
+PRIVMSG #42 :Hello everyone!
 MODE #42 +it
 INVITE bob #42
 ```
  
-El servidor responde con la bienvenida (`001`–`004`), confirma el `JOIN`, difunde el
-`TOPIC` y el `PRIVMSG`, y aplica los modos del canal.
+The server replies with the welcome numerics (`001`–`004`), confirms the `JOIN`,
+broadcasts the `TOPIC` and the `PRIVMSG`, and applies the channel modes.
  
 ---
  
-## 🔬 Tests
+## Tests
  
-El proyecto incluye una batería de pruebas propia para validar tanto el parser como el
-comportamiento del servidor de extremo a extremo:
+The project ships with its own test battery validating both the parser and the
+end-to-end behaviour of the server:
  
 ```bash
-make test              # suite completa (unit + integration)
-make test_unit         # solo el parser de mensajes IRC
-make test_integration  # handshake, errores, JOIN/PART/PRIVMSG, modos, KICK...
+make test              # full suite (unit + integration)
+make test_unit         # IRC message parser only
+make test_integration  # handshake, errors, JOIN/PART/PRIVMSG, modes, KICK...
 ```
  
-Los tests de integración cubren, entre otros: el *handshake* de registro, los errores
+The integration tests cover, among others: the registration handshake, error numerics
 (`464`, `433`, `451`), `PING/PONG`, `CAP`, `JOIN`/`PART`/`PRIVMSG`, `NOTICE`/`TOPIC`,
-y `KICK`/`MODE`/`INVITE`. Consulta [`tests/Tests.md`](tests/Tests.md) para la guía de
-pruebas manuales con clientes reales.
+and `KICK`/`MODE`/`INVITE`. See [`tests/Tests.md`](tests/Tests.md) for the manual
+testing guide using real clients.
  
 ---
 
+ 
+### Use of AI
+ 
+AI tools were used in a supporting role, never to write the core server logic:
+ 
+- **Test documentation**: the manual testing guide [`tests/Tests.md`](tests/Tests.md)
+  was drafted with an LLM and then reviewed and adjusted by the team.
+- **README**: this file was structured and drafted with AI assistance from the actual
+  project sources, then verified against the code.
+- **Debugging & explanations**: used occasionally to clarify parts of the IRC RFCs,
+  understand specific error numerics, and review edge cases in the message parser.
+All AI-assisted output was read, tested and validated by the authors before delivery.
+ 
